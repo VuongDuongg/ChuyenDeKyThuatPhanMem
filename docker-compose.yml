@@ -15,6 +15,8 @@ volumes:
     name: db_shard_1_data
   shard_2_data:
     name: db_shard_2_data
+  monolithic_data:
+    name: db_monolithic_data
 
 x-mysql-common: &mysql-common
   image: mysql:8.0
@@ -35,6 +37,47 @@ x-mysql-common: &mysql-common
     start_period: 30s
 
 services:
+  # ==============================================================================
+  # MÔI TRƯỜNG A: CƠ SỞ DỮ LIỆU NGUYÊN KHỐI (MONOLITHIC DATABASE BASELINE)
+  # - Cấp phát tài nguyên chuẩn hóa bằng tổng 3 Shards:
+  #   + CPU: 2.0 Cores (tương đương 3 x 0.67 Cores)
+  #   + RAM: 1.5 GB (tương đương 3 x 512 MB)
+  #   + Buffer Pool: 768M (tương đương 3 x 256M)
+  # ==============================================================================
+  db_monolithic:
+    image: mysql:8.0
+    container_name: db_monolithic
+    hostname: db_monolithic
+    restart: unless-stopped
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --max-connections=1000
+      - --innodb-buffer-pool-size=768M
+    environment:
+      MYSQL_ROOT_PASSWORD: root_secret_pass
+      MYSQL_DATABASE: ecommerce_monolithic_db
+      MYSQL_USER: shard_user
+      MYSQL_PASSWORD: shard_user_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - monolithic_data:/var/lib/mysql
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+    networks:
+      - sharding-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_secret_pass"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ==============================================================================
+  # MÔI TRƯỜNG B: CỤM PHÂN MẢNH CƠ SỞ DỮ LIỆU (SHARDED CLUSTER - 3 SHARDS)
+  # ==============================================================================
+
   # ==========================================
   # NODE SHARD 0
   # ==========================================
@@ -88,3 +131,4 @@ services:
     volumes:
       - shard_2_data:/var/lib/mysql
       - ./init-scripts:/docker-entrypoint-initdb.d:ro
+

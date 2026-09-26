@@ -6,6 +6,10 @@
 CREATE DATABASE IF NOT EXISTS `ecommerce_db` 
 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+CREATE DATABASE IF NOT EXISTS `ecommerce_monolithic_db` 
+CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Mặc định khởi tạo bảng cho ecommerce_db
 USE `ecommerce_db`;
 
 -- 1. BẢNG USERS
@@ -35,3 +39,35 @@ CREATE TABLE IF NOT EXISTS `orders` (
     INDEX `idx_user_created` (`user_id`, `created_at`),
     INDEX `idx_order_code` (`order_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ========================================================
+-- TỰ ĐỘNG KHỞI TẠO BẢNG CHO CƠ SỞ DỮ LIỆU NGUYÊN KHỐI (MONOLITHIC)
+-- ========================================================
+USE `ecommerce_monolithic_db`;
+
+CREATE TABLE IF NOT EXISTS `users` (
+    `id` BIGINT UNSIGNED NOT NULL COMMENT 'Khóa định danh người dùng',
+    `username` VARCHAR(64) NOT NULL,
+    `email` VARCHAR(128) NOT NULL,
+    `password_hash` VARCHAR(255) NOT NULL,
+    `full_name` VARCHAR(100),
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_email` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `orders` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `user_id` BIGINT UNSIGNED NOT NULL,
+    `order_code` VARCHAR(64) NOT NULL,
+    `total_amount` DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
+    `status` ENUM('PENDING', 'PAID', 'SHIPPED', 'CANCELLED') NOT NULL DEFAULT 'PENDING',
+    `shipping_address` TEXT NOT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`, `user_id`),
+    INDEX `idx_user_created` (`user_id`, `created_at`),
+    INDEX `idx_order_code` (`order_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+

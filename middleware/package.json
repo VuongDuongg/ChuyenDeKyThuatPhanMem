@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "node tests/test_routing_snowflake.js"
+    "test": "node tests/test_routing_snowflake.js",
+    "loadtest": "k6 run tests/load_test_insert.js",
+    "loadtest:quick": "k6 run -e QUICK=true tests/load_test_insert.js"
   },
   "keywords": [
     "sharding",

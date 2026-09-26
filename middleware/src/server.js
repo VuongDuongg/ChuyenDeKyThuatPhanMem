@@ -18,37 +18,60 @@ const app = express();
 app.use(express.json());
 
 // ==============================================================================
-// 1. CẤU HÌNH THÔNG SỐ CÁC SHARD VẬT LÝ TỪ BIẾN MÔI TRƯỜNG
+// 1. CẤU HÌNH THÔNG SỐ CƠ SỞ DỮ LIỆU TỪ BIẾN MÔI TRƯỜNG
+// Hỗ trợ 2 chế độ thử nghiệm:
+//   - DB_MODE=SHARDED: Kết nối 3 Shard vật lý (Ports 3307, 3308, 3309)
+//   - DB_MODE=MONOLITHIC: Kết nối 1 Database nguyên khối duy nhất (Port 3306)
 // ==============================================================================
-const SHARD_CONFIGS = [
-    {
-        shardId: 0,
-        host: process.env.SHARD0_HOST || '127.0.0.1',
-        port: parseInt(process.env.SHARD0_PORT || '3307', 10),
-        user: process.env.SHARD0_USER || 'shard_user',
-        password: process.env.SHARD0_PASSWORD || 'shard_user_pass',
-        database: process.env.SHARD0_DATABASE || 'ecommerce_db',
-        connectionLimit: parseInt(process.env.SHARD0_POOL_SIZE || '20', 10)
-    },
-    {
-        shardId: 1,
-        host: process.env.SHARD1_HOST || '127.0.0.1',
-        port: parseInt(process.env.SHARD1_PORT || '3308', 10),
-        user: process.env.SHARD1_USER || 'shard_user',
-        password: process.env.SHARD1_PASSWORD || 'shard_user_pass',
-        database: process.env.SHARD1_DATABASE || 'ecommerce_db',
-        connectionLimit: parseInt(process.env.SHARD1_POOL_SIZE || '20', 10)
-    },
-    {
-        shardId: 2,
-        host: process.env.SHARD2_HOST || '127.0.0.1',
-        port: parseInt(process.env.SHARD2_PORT || '3309', 10),
-        user: process.env.SHARD2_USER || 'shard_user',
-        password: process.env.SHARD2_PASSWORD || 'shard_user_pass',
-        database: process.env.SHARD2_DATABASE || 'ecommerce_db',
-        connectionLimit: parseInt(process.env.SHARD2_POOL_SIZE || '20', 10)
-    }
-];
+const DB_MODE = (process.env.DB_MODE || 'SHARDED').toUpperCase();
+
+let SHARD_CONFIGS = [];
+
+if (DB_MODE === 'MONOLITHIC') {
+    // MÔI TRƯỜNG A: 1 Shard đại diện cho toàn bộ CSDL Monolithic (Pool Size 60)
+    SHARD_CONFIGS = [
+        {
+            shardId: 0,
+            host: process.env.MONOLITHIC_HOST || '127.0.0.1',
+            port: parseInt(process.env.MONOLITHIC_PORT || '3306', 10),
+            user: process.env.MONOLITHIC_USER || 'shard_user',
+            password: process.env.MONOLITHIC_PASSWORD || 'shard_user_pass',
+            database: process.env.MONOLITHIC_DATABASE || 'ecommerce_monolithic_db',
+            connectionLimit: parseInt(process.env.MONOLITHIC_POOL_SIZE || '60', 10)
+        }
+    ];
+} else {
+    // MÔI TRƯỜNG B: Cụm 3 Shard phân tán (Mỗi shard Pool Size 20, tổng = 60)
+    SHARD_CONFIGS = [
+        {
+            shardId: 0,
+            host: process.env.SHARD0_HOST || '127.0.0.1',
+            port: parseInt(process.env.SHARD0_PORT || '3307', 10),
+            user: process.env.SHARD0_USER || 'shard_user',
+            password: process.env.SHARD0_PASSWORD || 'shard_user_pass',
+            database: process.env.SHARD0_DATABASE || 'ecommerce_db',
+            connectionLimit: parseInt(process.env.SHARD0_POOL_SIZE || '20', 10)
+        },
+        {
+            shardId: 1,
+            host: process.env.SHARD1_HOST || '127.0.0.1',
+            port: parseInt(process.env.SHARD1_PORT || '3308', 10),
+            user: process.env.SHARD1_USER || 'shard_user',
+            password: process.env.SHARD1_PASSWORD || 'shard_user_pass',
+            database: process.env.SHARD1_DATABASE || 'ecommerce_db',
+            connectionLimit: parseInt(process.env.SHARD1_POOL_SIZE || '20', 10)
+        },
+        {
+            shardId: 2,
+            host: process.env.SHARD2_HOST || '127.0.0.1',
+            port: parseInt(process.env.SHARD2_PORT || '3309', 10),
+            user: process.env.SHARD2_USER || 'shard_user',
+            password: process.env.SHARD2_PASSWORD || 'shard_user_pass',
+            database: process.env.SHARD2_DATABASE || 'ecommerce_db',
+            connectionLimit: parseInt(process.env.SHARD2_POOL_SIZE || '20', 10)
+        }
+    ];
+}
 
 const poolManager = new ShardConnectionPoolManager(SHARD_CONFIGS);
 
