@@ -3,7 +3,7 @@
 **Đề tài**: Thiết kế và hiện thực hóa hệ thống Phân mảnh cơ sở dữ liệu (Database Sharding & Horizontal Partitioning) cho ứng dụng quy mô lớn  
 **Giai đoạn**: PHASE 1 - Kiến trúc hệ thống, Thiết kế CSDL và Hạ tầng
 
----
+---9
 
 ## 1. PHÂN TÍCH VÀ THIẾT KẾ KIẾN TRÚC TỔNG QUAN (System Architecture)
 
@@ -99,6 +99,7 @@ Hệ thống sử dụng kỹ thuật phân mảnh ngang dựa trên hàm băm (
 $$ShardIndex = \mathcal{H}(ShardingKey) \pmod N$$
 
 Trong đó:
+
 - $ShardingKey$: Khóa phân mảnh được chọn (`user_id`).
 - $\mathcal{H}(k)$: Hàm băm (CRC32, MurmurHash3 hoặc MD5/SHA256 mod int).
 - $N$: Tổng số lượng node Shard ($N = 3$).

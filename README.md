@@ -20,10 +20,12 @@ ChuyenDeKyThuatPhanMem/
 ## 🚀 Hướng dẫn khởi chạy cụm Shards (Docker)
 
 ### 1. Yêu cầu môi trường
+
 - Cài đặt **Docker Desktop** (bật tính năng WSL 2 backend trên Windows).
 - Khởi động Docker Desktop trước khi chạy lệnh.
 
 ### 2. Khởi chạy 3 Shard MySQL
+
 Mở PowerShell hoặc Command Prompt tại thư mục dự án và chạy:
 
 ```bash
@@ -31,16 +33,19 @@ docker compose up -d
 ```
 
 ### 3. Kiểm tra trạng thái các node
+
 ```bash
 docker compose ps
 ```
 
 Sau khoảng 20-30 giây, cả 3 node sẽ chuyển sang trạng thái `healthy`:
+
 - **Shard 0**: `localhost:3307`
 - **Shard 1**: `localhost:3308`
 - **Shard 2**: `localhost:3309`
 
 ### 4. Kết nối kiểm tra dữ liệu bằng MySQL Client hoặc DBeaver / Navicat
+
 - **Host**: `127.0.0.1`
 - **Port**: `3307` (Shard 0) | `3308` (Shard 1) | `3309` (Shard 2)
 - **Database**: `ecommerce_db`
