@@ -96,17 +96,17 @@ Hệ thống sử dụng kỹ thuật phân mảnh ngang dựa trên hàm băm (
 
 ### 2.2. Công thức toán học định tuyến
 
-$$\text{Shard\_Index} = \mathcal{H}(\text{Sharding\_Key}) \pmod N$$
+$$ShardIndex = \mathcal{H}(ShardingKey) \pmod N$$
 
 Trong đó:
-- $\text{Sharding\_Key}$: Khóa phân mảnh được chọn (`user_id`).
+- $ShardingKey$: Khóa phân mảnh được chọn (`user_id`).
 - $\mathcal{H}(k)$: Hàm băm (CRC32, MurmurHash3 hoặc MD5/SHA256 mod int).
 - $N$: Tổng số lượng node Shard ($N = 3$).
-- $\text{Shard\_Index} \in \{0, 1, 2\}$: Chỉ số xác định node Shard vật lý chịu trách nhiệm.
+- $ShardIndex \in \{0, 1, 2\}$: Chỉ số xác định node Shard vật lý chịu trách nhiệm.
 
 Cụ thể với thuật toán CRC32:
 
-$$\text{Shard\_Index} = \text{CRC32}(\text{ToString}(\text{user\_id})) \pmod 3$$
+$$ShardIndex = \text{CRC32}(\text{user\_id}) \pmod 3$$
 
 ### 2.3. Đánh giá ưu điểm và nhược điểm
 
