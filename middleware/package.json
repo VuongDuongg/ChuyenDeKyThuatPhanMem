@@ -1,0 +1,25 @@
+{
+  "name": "sharding-middleware",
+  "version": "1.0.0",
+  "description": "Database Sharding Middleware with Distributed ID Generation & Scatter-Gather Engine",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node tests/test_routing_snowflake.js"
+  },
+  "keywords": [
+    "sharding",
+    "distributed-systems",
+    "snowflake",
+    "scatter-gather",
+    "mysql"
+  ],
+  "author": "Distributed Systems Architect",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mysql2": "^3.9.7"
+  }
+}
