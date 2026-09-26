@@ -1,0 +1,90 @@
+version: '3.8'
+
+networks:
+  sharding-net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  shard_0_data:
+    name: db_shard_0_data
+  shard_1_data:
+    name: db_shard_1_data
+  shard_2_data:
+    name: db_shard_2_data
+
+x-mysql-common: &mysql-common
+  image: mysql:8.0
+  restart: unless-stopped
+  command:
+    - --default-authentication-plugin=mysql_native_password
+    - --character-set-server=utf8mb4
+    - --collation-server=utf8mb4_unicode_ci
+    - --max-connections=1000
+    - --innodb-buffer-pool-size=256M
+  networks:
+    - sharding-net
+  healthcheck:
+    test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_secret_pass"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+    start_period: 30s
+
+services:
+  # ==========================================
+  # NODE SHARD 0
+  # ==========================================
+  db_shard_0:
+    <<: *mysql-common
+    container_name: db_shard_0
+    hostname: db_shard_0
+    environment:
+      MYSQL_ROOT_PASSWORD: root_secret_pass
+      MYSQL_DATABASE: ecommerce_db
+      MYSQL_USER: shard_user
+      MYSQL_PASSWORD: shard_user_pass
+    ports:
+      - "3307:3306"
+    volumes:
+      - shard_0_data:/var/lib/mysql
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+
+  # ==========================================
+  # NODE SHARD 1
+  # ==========================================
+  db_shard_1:
+    <<: *mysql-common
+    container_name: db_shard_1
+    hostname: db_shard_1
+    environment:
+      MYSQL_ROOT_PASSWORD: root_secret_pass
+      MYSQL_DATABASE: ecommerce_db
+      MYSQL_USER: shard_user
+      MYSQL_PASSWORD: shard_user_pass
+    ports:
+      - "3308:3306"
+    volumes:
+      - shard_1_data:/var/lib/mysql
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+
+  # ==========================================
+  # NODE SHARD 2
+  # ==========================================
+  db_shard_2:
+    <<: *mysql-common
+    container_name: db_shard_2
+    hostname: db_shard_2
+    environment:
+      MYSQL_ROOT_PASSWORD: root_secret_pass
+      MYSQL_DATABASE: ecommerce_db
+      MYSQL_USER: shard_user
+      MYSQL_PASSWORD: shard_user_pass
+    ports:
+      - "3309:3306"
+    volumes:
+      - shard_2_data:/var/lib/mysql
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
