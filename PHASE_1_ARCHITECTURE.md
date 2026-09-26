@@ -106,7 +106,7 @@ Trong đó:
 
 Cụ thể với thuật toán CRC32:
 
-$$ShardIndex = \text{CRC32}(\text{user\_id}) \pmod 3$$
+$$ShardIndex = \text{CRC32}(UserId) \pmod 3$$
 
 ### 2.3. Đánh giá ưu điểm và nhược điểm
 
