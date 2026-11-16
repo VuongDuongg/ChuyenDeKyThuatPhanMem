@@ -52,10 +52,12 @@ Hệ thống được thiết kế theo 4 kỹ thuật nền tảng:
 ChuyenDeKyThuatPhanMem/
 │── docker-compose.yml                      # Định nghĩa cụm 3 Shard (Ports 3307-3309) & 1 Monolithic DB (Port 3306)
 │── .gitignore                              # Cấu hình bỏ qua node_modules, file bí mật .env, logs
-│── PHASE_1_ARCHITECTURE.md                # Báo cáo Phase 1: Kiến trúc hệ thống, Phân tích CSDL & Hạ tầng
-│── PHASE_2_IMPLEMENTATION.md              # Báo cáo Phase 2: Hiện thực hóa Middleware, Snowflake & Scatter-Gather
-│── PHASE_3_LOAD_TESTING_AND_EVALUATION.md # Báo cáo Phase 3: Kiểm thử tải k6, Đánh giá hiệu năng & Đối chuẩn Monolithic
 │── README.md                              # Tài liệu hướng dẫn tổng quan toàn diện
+│── docs/
+│   ├── TONG_HOP_KIEN_THUC_VA_CHUAN_BI_BAO_VE.md # CẨM NANG TỔNG HỢP TOÀN BỘ ĐỒ ÁN & KỊCH BẢN BẢO VỆ
+│   ├── PHASE_1_ARCHITECTURE.md                # Báo cáo Phase 1: Kiến trúc hệ thống, Phân tích CSDL & Hạ tầng
+│   ├── PHASE_2_IMPLEMENTATION.md              # Báo cáo Phase 2: Hiện thực hóa Middleware, Snowflake & Scatter-Gather
+│   └── PHASE_3_LOAD_TESTING_AND_EVALUATION.md # Báo cáo Phase 3: Kiểm thử tải k6, Đánh giá hiệu năng & Đối chuẩn Monolithic
 │── init-scripts/
 │   └── 01_init_schema.sql                  # Script DDL khởi tạo tự động bảng users và orders cho cả 2 môi trường
 └── middleware/                             # Lớp Sharding Middleware Proxy (Node.js/Express)

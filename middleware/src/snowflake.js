@@ -68,7 +68,7 @@ class SnowflakeIdGenerator {
     _tilNextMillis(lastTimestamp) {
         let timestamp = this._timeGen();
         while (timestamp <= lastTimestamp) {
-            timestamp = this._timeGen();
+            timestamp = this._timeGen();b
         }
         return timestamp;
     }
