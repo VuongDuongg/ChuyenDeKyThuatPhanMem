@@ -9,28 +9,102 @@
 ## MỤC LỤC TỔNG QUAN
 
 1. [TỔNG QUAN ĐỀ TÀI VÀ KIẾN TRÚC TỔNG THỂ](#1-tổng-quan-đề-tài-và-kiến-trúc-tổng-thể)
+   - [1.1. Bối cảnh và Bài toán kỹ thuật cốt lõi](#11-bối-cảnh-và-bài-toán-kỹ-thuật-cốt-lõi)
+   - [1.2. Phân tích Chuyên sâu 4 Giới hạn Vật lý của Cơ sở dữ liệu Nguyên khối](#12-phân-tích-chuyên-sâu-4-giới-hạn-vật-lý-của-cơ-sở-dữ-liệu-nguyên-khối)
+   - [1.3. Mở rộng Thực tế: Cách các Tập đoàn Công nghệ (Big Tech) Giải quyết Bài toán Quy mô Toàn cầu](#13-mở-rộng-thực-tế-cách-các-tập-đoàn-công-nghệ-big-tech-giải-quyết-bài-toán-quy-mô-toàn-cầu)
+   - [1.4. Mô hình Kiến trúc 3 Tầng của Đề tài](#14-mô-hình-kiến-trúc-3-tầng-của-đề-tài-3-tier-transparent-sharding-architecture)
 2. [CHI TIẾT CÁC PHẦN ĐÃ HOÀN THÀNH (WHAT WE BUILT)](#2-chi-tiết-các-phần-đã-hoàn-thành-what-we-built)
 3. [CÁC QUYẾT ĐỊNH THIẾT KẾ CỐT LÕI (ARCHITECTURAL DECISIONS & RATIONALE)](#3-các-quyết-định-thiết-kế-cốt-lõi-architectural-decisions--rationale)
 4. [SỐ LIỆU ĐO ĐẠC VÀ KẾT QUẢ THỰC NGHIỆM ĐẮT GIÁ (EMPIRICAL METRICS)](#4-số-liệu-đo-đạc-và-kết-quả-thực-nghiệm-đắt-giá-empirical-metrics)
 5. [CÁC NHƯỢC ĐIỂM HỆ THỐNG VÀ HƯỚNG PHÁT TRIỂN (HONEST ARCHITECTURAL LIMITATIONS)](#5-các-nhược-điểm-hệ-thống-và-hướng-phát-triển-honest-architectural-limitations)
 6. [BỘ CÂU HỎI VÀ KỊCH BẢN TRẢ LỜI PHẢN BIỆN HỘI ĐỒNG (Q&A DEFENSE CHEAT-SHEET)](#6-bộ-câu-hỏi-và-kịch-bản-trả-lời-phản-biện-hội-đồng-qa-defense-cheat-sheet)
 7. [CHECKLIST VÀ KỊCH BẢN DEMO TRỰC TIẾP (LIVE DEMO SCRIPT)](#7-checklist-và-kịch-bản-demo-trực-tiếp-live-demo-script)
+   - [7.4. Quy trình Thực nghiệm Chịu tải Dữ liệu Lớn với k6 (Stress & Load Testing)](#74-quy-trình-thực-nghiệm-chịu-tải-dữ-liệu-lớn-với-k6-stress--load-testing)
 
 ---
 
 ## 1. TỔNG QUAN ĐỀ TÀI VÀ KIẾN TRÚC TỔNG THỂ
 
 ### 1.1. Bối cảnh và Bài toán kỹ thuật cốt lõi
-- **Giới hạn của Cơ sở dữ liệu Nguyên khối (Monolithic RDBMS)**:
-  - Khi dữ liệu vượt ngưỡng hàng trăm triệu bản ghi và lưu lượng truy cập đồng thời tăng vọt, máy chủ đơn lẻ chạm phải **4 giới hạn vật lý**:
-    1. *Nghẽn cổ chai I/O đĩa cứng* (Disk I/O Wait cao do ghi chỉ mục B+Tree liên tục).
-    2. *Tràn bộ nhớ đệm Buffer Pool* (Tập làm việc Working Set lớn hơn dung lượng RAM, buộc phải tráo đổi đĩa liên tục).
-    3. *Tranh chấp khóa và luồng* (Row-level Lock Contention, Mutex Contention và cạn kiệt `max_connections`).
-    4. *Chi phí mở rộng theo chiều dọc (Vertical Scaling / Scale-Up)* quá đắt đỏ và vẫn tiềm ẩn nguy cơ điểm lỗi đơn lẻ (Single Point of Failure - SPOF).
 - **Mục tiêu của Đồ án**:
   - Xây dựng một hệ sinh thái phân mảnh ngang (*Horizontal Sharding*) theo kiến trúc **Shared-Nothing**, mở rộng theo chiều ngang (*Scale-Out*), đảm bảo tính **minh bạch vị trí (Location Transparency)** đối với tầng ứng dụng, duy trì tính toàn vẹn dữ liệu và tối ưu hóa hiệu năng đọc/ghi.
+- **Tại sao phải phân mảnh ngang?**:
+  - Khi cơ sở dữ liệu quan hệ (RDBMS) chạm ngưỡng hàng trăm triệu bản ghi và lưu lượng truy cập đồng thời tăng vọt, máy chủ đơn lẻ va phải **4 giới hạn vật lý không thể vượt qua**.
 
-### 1.2. Mô hình Kiến trúc 3 Tầng (3-Tier Transparent Sharding Architecture)
+---
+
+### 1.2. Phân tích Chuyên sâu 4 Giới hạn Vật lý của Cơ sở dữ liệu Nguyên khối
+
+#### 1.2.1. Nghẽn cổ chai I/O đĩa cứng (Disk I/O Bottleneck do cập nhật B+Tree liên tục)
+- **Bản chất cơ chế**:
+  - Trong MySQL (InnoDB Storage Engine), dữ liệu và chỉ mục được tổ chức thành các trang (**Page $16\text{ KB}$**) nằm trong cấu trúc cây B+Tree.
+  - Khi bảng phình to hàng trăm triệu dòng, cây B+Tree đạt độ sâu 4-5 tầng với hàng triệu trang rải rác trên đĩa.
+  - Mỗi thao tác `INSERT` không đơn thuần là ghi 1 dòng dữ liệu, mà MySQL buộc phải cập nhật lại **Primary Key Clustered B+Tree** và **toàn bộ Secondary Indexes** (như cột `email`, `created_at`, `status`).
+  - Việc cập nhật này biến thành các thao tác **ghi ngẫu nhiên (Random I/O Writes)** làm cạn kiệt năng lực xử lý IOPS của ổ cứng (dù là SSD NVMe PCIe Gen4 cao cấp nhất).
+- **Hệ quả**: Chỉ số `%iowait` của CPU vọt lên cao ($40\% - 80\%$), CPU nhàn rỗi nhưng phải đứng chờ I/O đĩa phản hồi $\implies$ Gây nghẽn hàng đợi (Queue Stall) và phát sinh hàng loạt lỗi timeout truy vấn.
+
+#### 1.2.2. Tràn bộ nhớ đệm Buffer Pool (Working Set > RAM $\implies$ Disk Thrashing)
+- **Bản chất cơ chế**:
+  - **InnoDB Buffer Pool** là vùng RAM lưu đệm các trang dữ liệu và chỉ mục được đọc/ghi thường xuyên.
+  - Khái niệm **Working Set (Tập làm việc)**: Là phần dữ liệu và chỉ mục mà các truy vấn trong ngày đang tích cực tương tác.
+  - Khi dữ liệu vượt qua ngưỡng hàng trăm GB, kích thước của Working Set vượt quá dung lượng RAM vật lý của máy chủ.
+- **Hệ quả**: Xảy ra hiện tượng **Tráo đĩa liên tục (Disk Thrashing / Page Churn)**:
+  - MySQL liên tục phải giải phóng (evict) các trang cũ ra đĩa để nạp trang mới vào RAM.
+  - Ngay sau đó, truy vấn khác lại cần đúng trang vừa bị đẩy ra $\implies$ Buộc phải đọc lại từ đĩa.
+  - Tỷ lệ Cache Hit tụt dốc, kéo độ trễ truy vấn từ cấp độ **nanosecond (RAM)** xuống **millisecond (Đĩa cứng)** — tức là chậm đi hàng chục nghìn lần.
+
+#### 1.2.3. Tranh chấp khóa và luồng (Lock Contention, Mutex & Cạn kiệt Connection)
+- **Bản chất cơ chế**:
+  - **Mô hình luồng 1:1**: Mặc định mỗi kết nối client tới MySQL ứng với một luồng hệ điều hành (OS Thread). Khi có $3.000 - 5.000$ kết nối đồng thời, chi phí tráo đổi ngữ cảnh (*CPU Context Switching*) chiếm phần lớn năng lực CPU thay vì thực thi SQL.
+  - **Tranh chấp Mutex nội bộ**: Các vùng nhớ dùng chung như *Buffer Pool Latch* và *Redo Log Buffer Mutex* bị hàng nghìn luồng tranh giành nhau (*Spinlock contention*).
+  - **Tranh chấp khóa dòng (Row-level Lock Contention)**: Các giao dịch cập nhật trên cùng bảng điểm nóng (Hot rows) bị xung đột, sinh ra Deadlock và lỗi `Lock wait timeout exceeded`.
+
+#### 1.2.4. Rào cản Mở rộng Chiều dọc (Vertical Scaling / Scale-Up) và Nguy cơ SPOF
+- **Chi phí phi tuyến tính & Giới hạn vật lý**: Nâng cấp cấu hình một máy chủ từ 16 Cores/64GB RAM lên 128 Cores/1.5TB RAM có chi phí đắt gấp 10-20 lần (do phần cứng đa socket, kiến trúc bộ nhớ NUMA phức tạp). Hơn nữa, trên thị trường không tồn tại máy chủ đơn lẻ nào có 10.000 Cores và 100TB RAM.
+- **Điểm lỗi đơn lẻ (Single Point of Failure - SPOF)**: Dù máy chủ đắt tiền đến đâu, nếu gặp sự cố nguồn điện, chập bo mạch chủ (Motherboard), lỗi nhân Linux Kernel hoặc khởi động lại vá lỗi bảo mật $\implies$ **$100\%$ hoạt động kinh doanh toàn hệ thống ngừng hoạt động hoàn toàn**.
+
+#### Bảng Tổng hợp 4 Giới hạn Vật lý và Cách Sharding Giải quyết:
+| Giới hạn vật lý | Bản chất cốt lõi | Biểu hiện nhận biết | Cách Sharding khắc phục |
+| :--- | :--- | :--- | :--- |
+| **1. Nghẽn Disk I/O** | Cập nhật B+Tree quá sâu sinh ra bão Random Write làm kiệt IOPS. | `%iowait` cao, CPU rảnh nhưng đĩa bão hòa 100%. | Chia nhỏ B+Tree ra $N$ ổ đĩa độc lập, phân tán IOPS. |
+| **2. Tràn Buffer Pool** | Working Set vượt quá RAM, tráo đĩa liên tục (Disk Thrashing). | Tỷ lệ Cache Hit tụt, truy vấn chậm từ $\mu s$ sang $ms$. | Phân chia Working Set để mỗi máy chứa vừa khít trong RAM của nó. |
+| **3. Tranh chấp khóa** | Hàng nghìn kết nối tranh giành Mutex bộ nhớ và khóa hàng. | CPU vọt cao do Context Switch, lỗi Lock timeout. | Phân tán kết nối và cách ly khóa dòng sang $N$ DB engine độc lập. |
+| **4. Scale-Up & SPOF** | Phần cứng chạm trần kỹ thuật, rủi ro chết 1 máy là sập toàn bộ. | Chi phí thuê máy quá cao, sập toàn hệ thống khi 1 node lỗi. | Mở rộng ngang bằng máy chủ phổ thông giá rẻ, cách ly ranh giới lỗi. |
+
+---
+
+### 1.3. Mở rộng Thực tế: Cách các Tập đoàn Công nghệ (Big Tech) Giải quyết Bài toán Quy mô Toàn cầu
+
+Các tập đoàn công nghệ quy mô hàng tỷ người dùng như Facebook (Meta), Google, Netflix hay TikTok **không bao giờ gom máy chủ về một trung tâm dữ liệu duy nhất** mà phân bổ máy chủ đa vùng (*Multi-Region & Geo-Distribution*) vì 4 lý do sống còn:
+
+1. **Giới hạn tốc độ ánh sáng và Độ trễ mạng (Network Latency & Speed of Light)**:
+   - Tín hiệu ánh sáng truyền trong sợi quang cáp biển đạt vận tốc $\approx 200.000\text{ km/s}$. Một gói tin truyền từ Việt Nam sang California (Mỹ) mất quãng đường khứ hồi $24.000\text{ km}$, tương đương độ trễ tối thiểu $150\text{ms} - 250\text{ms}$ (Round-Trip Time - RTT).
+   - Nếu mọi tương tác (lướt Newfeed, thả tim, nhắn tin) đều gửi về Mỹ, người dùng sẽ trải nghiệm sự giật lag khó chịu.
+   - **Giải pháp**: Xây dựng các trạm biên (**Edge PoP / CDN**) và cụm máy chủ khu vực (Singapore, Hong Kong, Nhật Bản). Dữ liệu phản hồi tới người dùng Việt Nam chỉ mất **$5\text{ms} - 20\text{ms}$**.
+2. **Phân mảnh theo Vị trí Địa lý (Geo-Sharding)**:
+   - Dữ liệu của 3 tỷ người dùng Facebook không thể nhét chung vào một nơi. Họ áp dụng phân mảnh theo vùng địa lý:
+     - Dữ liệu người dùng Đông Nam Á $\implies$ Shard tại Datacenter Singapore.
+     - Dữ liệu người dùng Châu Âu $\implies$ Shard tại Datacenter Ireland / Thụy Điển.
+     - Dữ liệu người dùng Bắc Mỹ $\implies$ Shard tại Datacenter Virginia / Oregon.
+   - Khi người dùng ở Việt Nam thao tác, Middleware tự động định tuyến tới đúng Shard gần nhất ở Singapore.
+3. **Chủ quyền Dữ liệu và Rào cản Pháp lý (Data Sovereignty & Compliance)**:
+   - **Luật GDPR (Châu Âu)**: Bắt buộc dữ liệu cá nhân của công dân EU phải được lưu trữ và bảo vệ nghiêm ngặt trên các máy chủ nằm trong lãnh thổ châu Âu.
+   - **Luật An ninh mạng (Việt Nam)**: Quy định dữ liệu người dùng trong nước phải được lưu trữ tại trung tâm dữ liệu trong nước.
+4. **Khả năng Chống chịu Thảm họa (Disaster Recovery & High Availability)**:
+   - Nếu toàn bộ máy chủ đặt tại một bang của Mỹ và khu vực đó gặp thiên tai, động đất hoặc đứt cáp viễn thông $\implies$ Cả thế giới mất dịch vụ.
+   - Phân tán máy chủ đa vùng giúp hệ thống có khả năng tự phục hồi: Sự cố một Datacenter không làm ảnh hưởng đến các khu vực địa lý còn lại.
+
+#### 💡 Mối liên hệ thực tiễn với Đề tài Đồ án:
+- **Facebook chính là người dùng Sharded MySQL lớn nhất hành tinh**:
+  - Facebook lưu trữ toàn bộ đồ thị mạng xã hội (Social Graph: User, Post, Comment, Like) trên **hàng trăm nghìn máy chủ MySQL được phân mảnh ngang (Sharded MySQL)**.
+  - Họ tự nghiên cứu Storage Engine **MyRocks** (kết hợp MySQL với RocksDB) để tối ưu hóa nén và ghi đĩa trên từng Shard.
+  - Họ xây dựng tầng Middleware và Cache phân tán khổng lồ tên là **TAO** (hoạt động dựa trên triết lý Router tương tự như lớp Sharding Middleware trong đồ án này).
+- **Twitter và sự ra đời của Thuật toán Snowflake ID**:
+  - Thuật toán Snowflake ID được triển khai trong file `snowflake.js` của đồ án chính là phát minh của Twitter khi họ phải giải quyết bài toán hàng trăm triệu tweet/giây mà cơ chế `AUTO_INCREMENT` của MySQL hoàn toàn bất lực.
+
+---
+
+### 1.4. Mô hình Kiến trúc 3 Tầng của Đề tài (3-Tier Transparent Sharding Architecture)
 
 ```
                             [ Client / k6 Generator ]
@@ -277,3 +351,83 @@ Tại Terminal 3, thực hiện lần lượt các lệnh `curl`:
    curl -X GET "http://localhost:3000/api/users/search/by-email?email=k20@hcmut.edu.vn"
    ```
    $\implies$ Giải thích: Hệ thống kích hoạt `Promise.all()` phát tán song song đến cả 3 Shard, hiển thị telemetry thời gian phản hồi của từng Shard độc lập.
+
+---
+
+### 7.4. QUY TRÌNH THỰC NGHIỆM CHỊU TẢI DỮ LIỆU LỚN VỚI K6 (STRESS & LOAD TESTING)
+
+#### 7.4.1. Mục tiêu Khoa học của Thực nghiệm Dữ liệu Lớn
+Việc chèn thử nghiệm thủ công 1–2 bản ghi bằng `curl` chỉ mới xác thực tính đúng đắn về mặt chức năng (*Functional Correctness*). Để **chứng minh giá trị của hệ thống Sharding trong môi trường sản xuất**, cần thực hiện kiểm thử tải áp lực cao để định lượng hóa:
+1. **Khả năng chịu bão kết nối (Connection Concurrency)**: Kiểm tra xem hệ thống có bị nghẽn socket TCP, tràn `max_connections` hay tranh chấp Mutex khi hàng trăm luồng ghi cùng lúc hay không.
+2. **Độ phân tán dữ liệu thực tế (Empirical Uniform Distribution)**: Chứng minh trên hàng chục nghìn bản ghi, hàm băm CRC32 có thực sự chia đều $\approx 33.3\%$ tải lên 3 ổ đĩa riêng biệt, xóa bỏ hoàn toàn hiện tượng điểm nóng (*Write Hotspot*).
+3. **Phân vị độ trễ cực biên ($p95, p99$) và Tỷ lệ lỗi (Error Rate)**: Đảm bảo độ trễ phản hồi không bị vọt lên hàng nghìn ms và tỷ lệ lỗi bằng $0.00\%$.
+
+#### 7.4.2. Các Bước Tiến hành Thực nghiệm
+
+##### Bước 1: Khởi động Hạ tầng và Middleware
+- **Terminal 1**: Đảm bảo cụm 3 Shard MySQL đang chạy:
+  ```powershell
+  cd D:\ChuyenDeKyThuatPhanMem
+  docker compose up -d
+  ```
+- **Terminal 2**: Khởi động Middleware Server:
+  ```powershell
+  cd D:\ChuyenDeKyThuatPhanMem\middleware
+  npm start
+  ```
+
+##### Bước 2: Kích hoạt Công cụ Sinh tải k6 (Terminal 3)
+Mở cửa sổ Terminal 3 mới và di chuyển vào `middleware`:
+```powershell
+cd D:\ChuyenDeKyThuatPhanMem\middleware
+```
+
+Lựa chọn 1 trong 2 chế độ kiểm thử tùy theo thời gian:
+
+- **Chế độ 1: Kiểm thử Nhanh (Quick Verification - 30 giây, 50 Virtual Users)**:
+  ```powershell
+  npm run loadtest:quick
+  ```
+  *(Dùng để demo nhanh cho thầy cô xem trực tiếp tại bàn phản biện)*.
+
+- **Chế độ 2: Kiểm thử Áp lực Toàn diện (Full Stress Test - 4 phút, Ramping từ 10 lên 200 VUs)**:
+  ```powershell
+  npm run loadtest
+  ```
+  *(Dùng để thu thập số liệu, chụp biểu đồ đưa vào báo cáo và slide thuyết trình)*.
+
+#### 7.4.3. Hướng dẫn Đọc và Phân tích Bảng Kết quả k6
+Sau khi chạy xong, k6 sẽ in ra bảng tổng kết. Cần tập trung vào 4 chỉ số vàng sau:
+
+```text
+✓ HTTP Status is 201 Created....................: 100.00%
+✓ Has Valid Snowflake ID in body...............: 100.00%
+
+     insert_duration_ms.............: avg=8.2ms  min=1.8ms  med=6.5ms  max=45.2ms  p(95)=18.4ms  p(99)=28.6ms
+     http_reqs......................: 15420      257.0/s
+     system_error_rate..............: 0.00%
+```
+
+- **`system_error_rate: 0.00%`**: Không có bất kỳ request nào bị lỗi HTTP `5xx` hay lỗi MySQL `Lock wait timeout exceeded`.
+- **`p(95), p(99)`**: Phân vị $95\%$ người dùng nhận phản hồi dưới $20\text{ms}$, chứng minh tính trơn tru của Dedicated Connection Pool.
+- **`http_reqs`**: Tổng số lượng bản ghi đã được sinh và ghi thành công vào cụm Shard (ví dụ: $15.420$ giao dịch).
+
+#### 7.4.4. "Bằng chứng Thép" — Kiểm chứng Trực tiếp trên Ổ đĩa của 3 Shard
+Sau khi k6 hoàn tất việc bơm hàng chục nghìn bản ghi, thực thi 3 câu lệnh sau để đếm số lượng dòng thực tế được lưu trữ trên từng container MySQL:
+
+```powershell
+# Đếm số dòng trên Shard 0
+docker exec -it db_shard_0 mysql -ushard_user -pshard_user_pass -e "USE ecommerce_db; SELECT COUNT(*) AS total_rows_shard_0 FROM users;"
+
+# Đếm số dòng trên Shard 1
+docker exec -it db_shard_1 mysql -ushard_user -pshard_user_pass -e "USE ecommerce_db; SELECT COUNT(*) AS total_rows_shard_1 FROM users;"
+
+# Đếm số dòng trên Shard 2
+docker exec -it db_shard_2 mysql -ushard_user -pshard_user_pass -e "USE ecommerce_db; SELECT COUNT(*) AS total_rows_shard_2 FROM users;"
+```
+
+- **Tiêu chuẩn nghiệm thu**:
+  - Tỷ lệ phần trăm số dòng trên mỗi Shard phải xấp xỉ nhau:
+    $$\text{Tỷ lệ Shard } i = \frac{\text{Rows}_{\text{Shard } i}}{\text{Tổng số Rows}} \approx \mathbf{33.3\%}$$
+  - Hệ số biến thiên phân bố $CV \le 3\%$ $\implies$ **Chứng minh toán học hoàn hảo: Hệ thống phân bổ tải đồng đều tuyệt đối khi quy mô dữ liệu mở rộng lớn.**
+

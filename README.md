@@ -54,6 +54,7 @@ ChuyenDeKyThuatPhanMem/
 │── .gitignore                              # Cấu hình bỏ qua node_modules, file bí mật .env, logs
 │── README.md                              # Tài liệu hướng dẫn tổng quan toàn diện
 │── docs/
+│   ├── TIEU_LUAN_CHUYEN_DE_DATABASE_SHARDING.md # TIỂU LUẬN BÁO CÁO HỌC THUẬT TOÀN DIỆN (TRÌNH ĐỘ ĐẠI HỌC)
 │   ├── TONG_HOP_KIEN_THUC_VA_CHUAN_BI_BAO_VE.md # CẨM NANG TỔNG HỢP TOÀN BỘ ĐỒ ÁN & KỊCH BẢN BẢO VỆ
 │   ├── PHASE_1_ARCHITECTURE.md                # Báo cáo Phase 1: Kiến trúc hệ thống, Phân tích CSDL & Hạ tầng
 │   ├── PHASE_2_IMPLEMENTATION.md              # Báo cáo Phase 2: Hiện thực hóa Middleware, Snowflake & Scatter-Gather
